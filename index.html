@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>A4 Celebration Hall — Admin</title>
+
+<!--
+  =========================================================================
+  A4 CELEBRATION HALL — ADMIN CONSOLE
+  =========================================================================
+  Before this works, fill in SUPABASE_URL and SUPABASE_ANON_KEY below,
+  and complete the setup steps in SETUP.md (create the database table,
+  storage bucket, security policies, and your admin login(s) in Supabase).
+
+  This page has NO sign-up form anywhere, by design. Accounts are created
+  only by you, directly in the Supabase dashboard.
+  =========================================================================
+-->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<style>
+  :root{
+    --ink:        #101a17;
+    --ink-soft:   #46564f;
+    --paper:      #f6f4ee;
+    --panel:      #ffffff;
+    --line:       #e2e0d4;
+    --hall:       #0e2a26;      /* deep emerald — the hall's signature */
+    --hall-2:     #143a34;
+    --gold:       #b6862c;      /* muted brass/gold, not neon */
+    --gold-soft:  #e8d9b4;
+    --danger:     #a33d2f;
+    --danger-bg:  #fbeae6;
+    --ok:         #2f6b46;
+    --radius-s:   6px;
+    --radius-m:   10px;
+    --shadow:     0 1px 2px rgba(16,26,23,.06), 0 8px 24px -12px rgba(16,26,23,.18);
+    --focus:      0 0 0 3px rgba(182,134,44,.35);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing:antialiased;
+    font-size:15px;
+    line-height:1.5;
+  }
+  h1,h2,h3,.brand{
+    font-family:"Fraunces","Georgia",serif;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  a{ color:inherit; }
+  button{ font-family:inherit; }
+  ::selection{ background:var(--gold-soft); }
+  :focus-visible{ outline:none; box-shadow:var(--focus); border-radius:var(--radius-s); }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+
+  .hidden{ display:none !important; }
+
+  /* ---------- Login ---------- */
+  #login-view{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(1100px 600px at 15% -10%, #163f38 0%, transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, #1a4a41 0%, transparent 55%),
+      var(--hall);
+    padding:24px;
+  }
+  .login-card{
+    width:100%;
+    max-width:380px;
+    background:var(--panel);
+    border-radius:var(--radius-m);
+    box-shadow:0 24px 60px -20px rgba(0,0,0,.5);
+    padding:36px 32px 30px;
+    position:relative;
+    overflow:hidden;
+  }
+  .login-card::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:4px;
+    background:linear-gradient(90deg, var(--gold), var(--gold-soft), var(--gold));
+  }
+  .login-mark{
+    display:flex; align-items:center; gap:10px; margin-bottom:22px;
+  }
+  .login-mark .glyph{
+    width:38px; height:38px; border-radius:50%;
+    background:var(--hall); color:var(--gold-soft);
+    display:flex; align-items:center; justify-content:center;
+    font-family:"Fraunces",serif; font-size:17px; font-weight:600;
+    flex-shrink:0;
+  }
+  .login-mark .name{ line-height:1.2; }
+  .login-mark .name b{ display:block; font-size:16.5px; color:var(--ink); }
+  .login-mark .name span{ display:block; font-size:11.5px; color:var(--ink-soft); letter-spacing:.02em; }
+
+  .login-card h1{ font-size:22px; margin:0 0 4px; }
+  .login-card p.lede{ margin:0 0 26px; color:var(--ink-soft); font-size:13.5px; }
+
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%; padding:11px 12px; border:1px solid var(--line);
+    border-radius:var(--radius-s); font-size:14.5px; background:#fcfbf8;
+    color:var(--ink); transition:border-color .15s, background .15s;
+  }
+  .field input:focus{ border-color:var(--gold); background:#fff; }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    border:none; border-radius:var(--radius-s); cursor:pointer;
+    font-size:14px; font-weight:600; padding:11px 18px;
+    transition:filter .15s, transform .05s;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{ background:var(--hall); color:#fdf9ee; width:100%; }
+  .btn-primary:hover{ filter:brightness(1.15); }
+  .btn-primary:disabled{ opacity:.6; cursor:default; }
+  .btn-ghost{ background:transparent; color:var(--ink-soft); border:1px solid var(--line); }
+  .btn-ghost:hover{ background:#f1efe6; }
+  .btn-danger{ background:var(--danger-bg); color:var(--danger); }
+  .btn-danger:hover{ filter:brightness(0.97); }
+  .btn-sm{ padding:7px 12px; font-size:12.5px; }
+
+  .alert{
+    font-size:13px; padding:10px 12px; border-radius:var(--radius-s);
+    margin-bottom:16px; display:flex; gap:8px; align-items:flex-start;
+  }
+  .alert-error{ background:var(--danger-bg); color:var(--danger); }
+  .alert-ok{ background:#e9f3ec; color:var(--ok); }
+
+  .login-foot{ margin-top:20px; font-size:12px; color:#8b9089; text-align:center; }
+
+  /* ---------- App shell ---------- */
+  #app-view{ min-height:100vh; display:flex; }
+
+  .sidebar{
+    width:230px; flex-shrink:0; background:var(--hall);
+    color:#eef4ee; display:flex; flex-direction:column;
+    padding:22px 16px;
+  }
+  .sidebar .brand{
+    color:#fdf9ee; font-size:17px; display:flex; align-items:center; gap:10px;
+    padding:0 6px 22px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:14px;
+  }
+  .sidebar .brand .glyph{
+    width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,.1);
+    color:var(--gold-soft); display:flex; align-items:center; justify-content:center;
+    font-size:14px; flex-shrink:0;
+  }
+  .nav-item{
+    display:flex; align-items:center; gap:10px; width:100%;
+    padding:10px 12px; border:none; background:transparent; color:#cfe0d4;
+    border-radius:var(--radius-s); font-size:14px; text-align:left; cursor:pointer;
+    margin-bottom:2px; font-weight:500;
+  }
+  .nav-item svg{ width:17px; height:17px; flex-shrink:0; opacity:.85; }
+  .nav-item:hover{ background:rgba(255,255,255,.07); color:#fff; }
+  .nav-item.active{ background:rgba(255,255,255,.14); color:#fff; }
+  .nav-item.active svg{ opacity:1; }
+
+  .sidebar-foot{ margin-top:auto; padding-top:14px; border-top:1px solid rgba(255,255,255,.12); }
+  .who{ font-size:12px; color:#a9c0af; padding:0 4px 10px; word-break:break-all; }
+
+  .main{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 28px; border-bottom:1px solid var(--line); background:var(--panel);
+  }
+  .topbar h2{ font-size:19px; margin:0; }
+  .topbar .sub{ font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .hamburger{ display:none; }
+
+  .content{ padding:26px 28px 60px; max-width:1080px; width:100%; margin:0 auto; }
+
+  .panel-head{
+    display:flex; align-items:flex-end; justify-content:space-between; gap:16px;
+    margin-bottom:18px; flex-wrap:wrap;
+  }
+  .panel-head .count{ font-size:12.5px; color:var(--ink-soft); }
+
+  .toast-slot{ position:fixed; top:18px; right:18px; z-index:60; display:flex; flex-direction:column; gap:8px; max-width:320px; }
+  .toast{
+    background:var(--ink); color:#fff; padding:11px 14px; border-radius:var(--radius-s);
+    font-size:13px; box-shadow:var(--shadow); display:flex; gap:8px; align-items:flex-start;
+  }
+  .toast.err{ background:var(--danger); }
+  .toast.ok{ background:var(--ok); }
+
+  /* Upload dropzone */
+  .dropzone{
+    border:1.5px dashed #c9c4ac; border-radius:var(--radius-m);
+    background:#fbfaf6; padding:26px; text-align:center; margin-bottom:24px;
+    transition:border-color .15s, background .15s; cursor:pointer;
+  }
+  .dropzone.drag{ border-color:var(--gold); background:#faf4e6; }
+  .dropzone svg{ width:26px; height:26px; color:var(--ink-soft); margin-bottom:8px; }
+  .dropzone p{ margin:0; font-size:13.5px; color:var(--ink-soft); }
+  .dropzone strong{ color:var(--ink); }
+  .dropzone input{ display:none; }
+
+  .grid{
+    display:grid; gap:14px;
+    grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));
+  }
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-m);
+    overflow:hidden; box-shadow:var(--shadow); position:relative;
+  }
+  .card .thumb-wrap{ aspect-ratio:4/3; background:#eee; overflow:hidden; position:relative; }
+  .card img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .card .thumb-wrap .play{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.15);
+  }
+  .card .thumb-wrap .play svg{ width:38px; height:38px; color:#fff; filter:drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+  .card .meta{ padding:10px 11px 11px; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .card .meta .name{ font-size:12px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .card .del{
+    border:none; background:transparent; color:#b7bcb2; cursor:pointer;
+    width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; transition:background .15s, color .15s;
+  }
+  .card .del:hover{ background:var(--danger-bg); color:var(--danger); }
+  .card .del svg{ width:16px; height:16px; }
+  .card.uploading .thumb-wrap{ display:flex; align-items:center; justify-content:center; }
+  .spinner{
+    width:22px; height:22px; border-radius:50%; border:2.5px solid #d9d5c4;
+    border-top-color:var(--gold); animation:spin .8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* Video add form */
+  .video-form{
+    display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;
+  }
+  .video-form input{
+    flex:1; min-width:220px; padding:11px 12px; border:1px solid var(--line);
+    border-radius:var(--radius-s); font-size:14px; background:#fcfbf8;
+  }
+  .video-form input:focus{ border-color:var(--gold); background:#fff; }
+
+  .empty{
+    text-align:center; padding:50px 20px; color:var(--ink-soft);
+    border:1px dashed var(--line); border-radius:var(--radius-m); background:#fbfaf6;
+  }
+  .empty svg{ width:30px; height:30px; margin-bottom:10px; opacity:.6; }
+  .empty p{ margin:0; font-size:13.5px; }
+
+  .skel{ background:linear-gradient(90deg,#eceae0 25%,#f4f2e8 37%,#eceae0 63%); background-size:400% 100%; animation:shine 1.4s ease infinite; }
+  @keyframes shine{ 0%{background-position:100% 0} 100%{background-position:0 0} }
+
+  /* Responsive */
+  @media (max-width:820px){
+    .sidebar{
+      position:fixed; z-index:50; inset:0 auto 0 0; transform:translateX(-100%);
+      transition:transform .2s ease; box-shadow:16px 0 40px rgba(0,0,0,.25);
+    }
+    .sidebar.open{ transform:translateX(0); }
+    .main{ width:100%; }
+    .hamburger{
+      display:flex; align-items:center; justify-content:center;
+      width:36px; height:36px; border-radius:var(--radius-s); border:1px solid var(--line);
+      background:var(--panel); cursor:pointer;
+    }
+    .hamburger svg{ width:18px; height:18px; }
+    .topbar-left{ display:flex; align-items:center; gap:12px; }
+    .content{ padding:20px 16px 50px; }
+    .scrim{ position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:45; }
+  }
+  @media (min-width:821px){ .scrim{ display:none !important; } }
+</style>
+</head>
+<body>
+
+<div class="toast-slot" id="toast-slot"></div>
+
+<!-- ============================= LOGIN ============================= -->
+<div id="login-view">
+  <div class="login-card">
+    <div class="login-mark">
+      <div class="glyph">A4</div>
+      <div class="name"><b>A4 Celebration Hall</b><span>Admin console</span></div>
+    </div>
+    <h1>Sign in</h1>
+    <p class="lede">Accounts are created directly by the hall administrator. There is no self sign-up.</p>
+
+    <div id="login-alert"></div>
+
+    <form id="login-form" autocomplete="off">
+      <div class="field">
+        <label for="login-email">Mobile number</label>
+        <input id="login-email" type="tel" inputmode="tel" required autocomplete="tel" placeholder="+91 98765 43210" />
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input id="login-password" type="password" required autocomplete="current-password" placeholder="••••••••" />
+      </div>
+      <button class="btn btn-primary" id="login-submit" type="submit">Sign in</button>
+    </form>
+    <p class="login-foot">Access is restricted to hall staff accounts.</p>
+  </div>
+</div>
+
+<!-- ============================= APP ============================= -->
+<div id="app-view" class="hidden">
+  <div class="scrim hidden" id="scrim"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><span class="glyph">A4</span> A4 Hall Admin</div>
+
+    <button class="nav-item active" data-view="gallery">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="9" r="1.6"/><path d="M21 15l-5-5-9 9"/></svg>
+      Gallery
+    </button>
+    <button class="nav-item" data-view="videos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="5" width="19" height="14" rx="2.2"/><path d="M10 9.3v5.4l5-2.7z" fill="currentColor" stroke="none"/></svg>
+      Videos
+    </button>
+
+    <div class="sidebar-foot">
+      <div class="who" id="who-email">—</div>
+      <button class="btn btn-ghost btn-sm" id="signout-btn" style="width:100%;">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" id="hamburger-btn" aria-label="Open menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <div>
+          <h2 id="page-title">Gallery</h2>
+          <div class="sub" id="page-sub">Photos shown on the hall's public site</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Gallery panel -->
+      <section id="panel-gallery">
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif" multiple />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+          <p><strong>Click to upload</strong> or drag photos here — JPG, PNG, WEBP up to 8&nbsp;MB each</p>
+        </div>
+        <div class="panel-head">
+          <div class="count" id="gallery-count"></div>
+        </div>
+        <div class="grid" id="gallery-grid"></div>
+      </section>
+
+      <!-- Videos panel -->
+      <section id="panel-videos" class="hidden">
+        <form class="video-form" id="video-form">
+          <input id="video-url-input" type="url" required placeholder="Paste a YouTube link, e.g. https://youtu.be/…" />
+          <button class="btn btn-primary" type="submit" style="width:auto;">Add video</button>
+        </form>
+        <div class="panel-head">
+          <div class="count" id="videos-count"></div>
+        </div>
+        <div class="grid" id="videos-grid"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =======================================================================
+   CONFIGURATION — fill these in from your Supabase project settings
+   (Project Settings → API). The anon key is safe to expose in client
+   code: it only works within the limits of your Row Level Security
+   policies, which is why SETUP.md's policies matter.
+   ======================================================================= */
+const SUPABASE_URL      = "https://YOUR-PROJECT-REF.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+
+const GALLERY_BUCKET = "gallery-images";
+const VIDEOS_TABLE   = "videos";
+const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MB
+const ALLOWED_TYPES  = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+
+/* ======================================================================= */
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+});
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+/* ---------------- Toasts ---------------- */
+function toast(message, kind = "") {
+  const slot = $("#toast-slot");
+  const el = document.createElement("div");
+  el.className = "toast" + (kind ? " " + kind : "");
+  el.textContent = message; // textContent only — never render untrusted HTML
+  slot.appendChild(el);
+  setTimeout(() => el.remove(), 4200);
+}
+
+/* ---------------- Auth ---------------- */
+const loginView = $("#login-view");
+const appView   = $("#app-view");
+const loginForm = $("#login-form");
+const loginAlert = $("#login-alert");
+const loginSubmit = $("#login-submit");
+
+function showAlert(target, msg, kind = "error") {
+  target.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "alert alert-" + kind;
+  div.textContent = msg;
+  target.appendChild(div);
+}
+function clearAlert(target) { target.innerHTML = ""; }
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  clearAlert(loginAlert);
+  const phone = normalizePhone($("#login-email").value.trim());
+  const password = $("#login-password").value;
+  if (!phone) {
+    showAlert(loginAlert, "Enter your mobile number with country code, e.g. +91 98765 43210.");
+    return;
+  }
+  loginSubmit.disabled = true;
+  loginSubmit.textContent = "Signing in…";
+  try {
+    const { error } = await sb.auth.signInWithPassword({ phone, password });
+    if (error) throw error;
+    // onAuthStateChange below handles switching views
+  } catch (err) {
+    showAlert(loginAlert, "Sign-in failed — check your mobile number and password and try again.");
+  } finally {
+    loginSubmit.disabled = false;
+    loginSubmit.textContent = "Sign in";
+    $("#login-password").value = "";
+  }
+});
+
+$("#signout-btn").addEventListener("click", async () => {
+  await sb.auth.signOut();
+});
+
+sb.auth.onAuthStateChange((_event, session) => {
+  if (session && session.user) {
+    loginView.classList.add("hidden");
+    appView.classList.remove("hidden");
+    $("#who-email").textContent = session.user.phone || session.user.email || "";
+    initAppOnce();
+  } else {
+    appView.classList.add("hidden");
+    loginView.classList.remove("hidden");
+  }
+});
+
+/* ---------------- Nav / responsive shell ---------------- */
+let appInited = false;
+function initAppOnce() {
+  if (appInited) return;
+  appInited = true;
+  loadGallery();
+  loadVideos();
+}
+
+$$(".nav-item").forEach(btn => {
+  btn.addEventListener("click", () => {
+    $$(".nav-item").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const view = btn.dataset.view;
+    $("#panel-gallery").classList.toggle("hidden", view !== "gallery");
+    $("#panel-videos").classList.toggle("hidden", view !== "videos");
+    $("#page-title").textContent = view === "gallery" ? "Gallery" : "Videos";
+    $("#page-sub").textContent = view === "gallery"
+      ? "Photos shown on the hall's public site"
+      : "YouTube videos shown on the hall's public site";
+    closeSidebar();
+  });
+});
+
+const sidebar = $("#sidebar");
+const scrim = $("#scrim");
+function openSidebar() { sidebar.classList.add("open"); scrim.classList.remove("hidden"); }
+function closeSidebar() { sidebar.classList.remove("open"); scrim.classList.add("hidden"); }
+$("#hamburger-btn").addEventListener("click", openSidebar);
+scrim.addEventListener("click", closeSidebar);
+
+/* ---------------- Helpers ---------------- */
+const DEFAULT_COUNTRY_CODE = "91"; // India — change if your admins are elsewhere
+function normalizePhone(raw) {
+  if (!raw) return null;
+  let digits = raw.replace(/[^\d+]/g, "");
+  if (digits.startsWith("+")) {
+    digits = "+" + digits.slice(1).replace(/\D/g, "");
+  } else {
+    digits = digits.replace(/\D/g, "");
+    // No country code typed — assume the default one (e.g. a 10-digit Indian number).
+    digits = "+" + DEFAULT_COUNTRY_CODE + digits;
+  }
+  // Supabase expects E.164 without spaces: + followed by 8–15 digits.
+  return /^\+\d{8,15}$/.test(digits) ? digits : null;
+}
+function escapeName(name) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
+}
+function uniqueFileName(originalName) {
+  const safe = escapeName(originalName || "photo.jpg");
+  const stamp = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${stamp}-${rand}-${safe}`;
+}
+function extractYouTubeId(url) {
+  try {
+    const u = new URL(url.trim());
+    const host = u.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") {
+      const id = u.pathname.split("/").filter(Boolean)[0];
+      return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+    }
+    if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+      if (u.pathname === "/watch") {
+        const id = u.searchParams.get("v");
+        return id && /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+      }
+      const parts = u.pathname.split("/").filter(Boolean);
+      if ((parts[0] === "shorts" || parts[0] === "embed" || parts[0] === "live") && parts[1]) {
+        return /^[a-zA-Z0-9_-]{11}$/.test(parts[1]) ? parts[1] : null;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/* ---------------- Gallery ---------------- */
+const galleryGrid = $("#gallery-grid");
+const galleryCount = $("#gallery-count");
+const dropzone = $("#dropzone");
+const fileInput = $("#file-input");
+
+dropzone.addEventListener("click", () => fileInput.click());
+["dragenter", "dragover"].forEach(evt =>
+  dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("drag"); })
+);
+["dragleave", "drop"].forEach(evt =>
+  dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove("drag"); })
+);
+dropzone.addEventListener("drop", (e) => {
+  const files = Array.from(e.dataTransfer.files || []);
+  if (files.length) handleFiles(files);
+});
+fileInput.addEventListener("change", (e) => {
+  const files = Array.from(e.target.files || []);
+  if (files.length) handleFiles(files);
+  fileInput.value = "";
+});
+
+async function handleFiles(files) {
+  for (const file of files) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast(`Skipped "${file.name}" — unsupported file type.`, "err");
+      continue;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      toast(`Skipped "${file.name}" — larger than 8 MB.`, "err");
+      continue;
+    }
+    await uploadOne(file);
+  }
+}
+
+async function uploadOne(file) {
+  const card = document.createElement("div");
+  card.className = "card uploading";
+  card.innerHTML = `<div class="thumb-wrap"><div class="spinner"></div></div>
+    <div class="meta"><span class="name">Uploading…</span></div>`;
+  galleryGrid.prepend(card);
+
+  const path = uniqueFileName(file.name);
+  try {
+    const { error: upErr } = await sb.storage.from(GALLERY_BUCKET).upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type
+    });
+    if (upErr) throw upErr;
+    toast("Photo uploaded.", "ok");
+    await loadGallery();
+  } catch (err) {
+    card.remove();
+    toast("Upload failed: " + (err.message || "please try again."), "err");
+  }
+}
+
+async function loadGallery() {
+  galleryGrid.innerHTML = skeletonCards(6);
+  try {
+    const { data, error } = await sb.storage.from(GALLERY_BUCKET).list("", {
+      limit: 200,
+      sortBy: { column: "created_at", order: "desc" }
+    });
+    if (error) throw error;
+    const files = (data || []).filter(f => f.name && !f.name.endsWith("/"));
+    galleryCount.textContent = files.length
+      ? `${files.length} photo${files.length === 1 ? "" : "s"}`
+      : "";
+    if (!files.length) {
+      galleryGrid.innerHTML = "";
+      galleryGrid.parentElement.querySelector(".grid").outerHTML = emptyState(
+        "No photos yet", "Upload photos above to add them to the hall's gallery."
+      );
+      return;
+    }
+    galleryGrid.innerHTML = "";
+    for (const f of files) {
+      const { data: pub } = sb.storage.from(GALLERY_BUCKET).getPublicUrl(f.name);
+      galleryGrid.appendChild(galleryCard(f.name, pub.publicUrl));
+    }
+  } catch (err) {
+    galleryGrid.innerHTML = emptyState("Couldn't load the gallery", err.message || "Check your connection and try again.");
+  }
+}
+
+function galleryCard(path, url) {
+  const card = document.createElement("div");
+  card.className = "card";
+  const thumbWrap = document.createElement("div");
+  thumbWrap.className = "thumb-wrap";
+  const img = document.createElement("img");
+  img.src = url;
+  img.loading = "lazy";
+  img.alt = "Gallery photo";
+  thumbWrap.appendChild(img);
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const name = document.createElement("span");
+  name.className = "name";
+  name.textContent = path.replace(/^\d+-[a-z0-9]+-/, "");
+  const del = document.createElement("button");
+  del.className = "del";
+  del.title = "Delete photo";
+  del.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-8 0l1 13a1 1 0 001 1h6a1 1 0 001-1l1-13"/></svg>`;
+  del.addEventListener("click", () => deletePhoto(path, card));
+
+  meta.appendChild(name);
+  meta.appendChild(del);
+  card.appendChild(thumbWrap);
+  card.appendChild(meta);
+  return card;
+}
+
+async function deletePhoto(path, card) {
+  if (!confirm("Delete this photo? This can't be undone.")) return;
+  card.style.opacity = "0.4";
+  try {
+    const { error } = await sb.storage.from(GALLERY_BUCKET).remove([path]);
+    if (error) throw error;
+    card.remove();
+    toast("Photo deleted.", "ok");
+    if (!galleryGrid.children.length) loadGallery();
+  } catch (err) {
+    card.style.opacity = "1";
+    toast("Couldn't delete photo: " + (err.message || ""), "err");
+  }
+}
+
+function skeletonCards(n) {
+  let html = "";
+  for (let i = 0; i < n; i++) {
+    html += `<div class="card"><div class="thumb-wrap skel"></div><div class="meta"><span class="skel" style="width:70%;height:10px;border-radius:4px;display:block;"></span></div></div>`;
+  }
+  return html;
+}
+function emptyState(title, body) {
+  return `<div class="empty">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 13l2.5 3L14 12l4 6"/></svg>
+    <p><strong>${title}</strong><br/>${body}</p>
+  </div>`;
+}
+
+/* ---------------- Videos ---------------- */
+const videoForm = $("#video-form");
+const videoUrlInput = $("#video-url-input");
+const videosGrid = $("#videos-grid");
+const videosCount = $("#videos-count");
+
+videoForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const url = videoUrlInput.value.trim();
+  const id = extractYouTubeId(url);
+  if (!id) {
+    toast("That doesn't look like a valid YouTube link.", "err");
+    return;
+  }
+  const submitBtn = videoForm.querySelector("button");
+  submitBtn.disabled = true;
+  try {
+    const { error } = await sb.from(VIDEOS_TABLE).insert({ youtube_url: url, video_id: id });
+    if (error) throw error;
+    videoUrlInput.value = "";
+    toast("Video added.", "ok");
+    await loadVideos();
+  } catch (err) {
+    toast("Couldn't add video: " + (err.message || ""), "err");
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+async function loadVideos() {
+  videosGrid.innerHTML = skeletonCards(4);
+  try {
+    const { data, error } = await sb
+      .from(VIDEOS_TABLE)
+      .select("id, youtube_url, video_id, created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    videosCount.textContent = data.length
+      ? `${data.length} video${data.length === 1 ? "" : "s"}`
+      : "";
+    if (!data.length) {
+      videosGrid.outerHTML = `<div class="grid" id="videos-grid">${emptyState("No videos yet", "Paste a YouTube link above to add the hall's first video.")}</div>`;
+      return;
+    }
+    videosGrid.innerHTML = "";
+    for (const row of data) videosGrid.appendChild(videoCard(row));
+  } catch (err) {
+    videosGrid.innerHTML = emptyState("Couldn't load videos", err.message || "Check your connection and try again.");
+  }
+}
+
+function videoCard(row) {
+  const card = document.createElement("div");
+  card.className = "card";
+  const thumbWrap = document.createElement("a");
+  thumbWrap.className = "thumb-wrap";
+  thumbWrap.href = row.youtube_url;
+  thumbWrap.target = "_blank";
+  thumbWrap.rel = "noopener noreferrer nofollow";
+  const img = document.createElement("img");
+  img.src = `https://img.youtube.com/vi/${row.video_id}/hqdefault.jpg`;
+  img.alt = "YouTube thumbnail";
+  img.loading = "lazy";
+  const play = document.createElement("div");
+  play.className = "play";
+  play.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill-opacity=".0"/><path d="M9.5 7.5v9l7-4.5z"/></svg>`;
+  thumbWrap.appendChild(img);
+  thumbWrap.appendChild(play);
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const name = document.createElement("span");
+  name.className = "name";
+  name.textContent = row.youtube_url;
+  const del = document.createElement("button");
+  del.className = "del";
+  del.title = "Delete video";
+  del.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-8 0l1 13a1 1 0 001 1h6a1 1 0 001-1l1-13"/></svg>`;
+  del.addEventListener("click", () => deleteVideo(row.id, card));
+
+  meta.appendChild(name);
+  meta.appendChild(del);
+  card.appendChild(thumbWrap);
+  card.appendChild(meta);
+  return card;
+}
+
+async function deleteVideo(id, card) {
+  if (!confirm("Remove this video? This can't be undone.")) return;
+  card.style.opacity = "0.4";
+  try {
+    const { error } = await sb.from(VIDEOS_TABLE).delete().eq("id", id);
+    if (error) throw error;
+    card.remove();
+    toast("Video removed.", "ok");
+    if (!videosGrid.children.length) loadVideos();
+  } catch (err) {
+    card.style.opacity = "1";
+    toast("Couldn't remove video: " + (err.message || ""), "err");
+  }
+}
+
+/* ---------------- Config sanity check ---------------- */
+if (SUPABASE_URL.includes("YOUR-PROJECT-REF") || SUPABASE_ANON_KEY.includes("YOUR-ANON")) {
+  showAlert(loginAlert, "This page hasn't been connected to Supabase yet — see SETUP.md.", "error");
+  loginSubmit.disabled = true;
+}
+</script>
+</body>
+</html>
